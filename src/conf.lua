@@ -13,7 +13,7 @@ function love.conf(t)
             width = 1152,
             height = 720,
         },
-        debug = true,
+        debug = false,
         image = {
             scale = 3,
             player = "assets/images/player.png",
@@ -34,7 +34,7 @@ function love.conf(t)
                 down = "down",
                 left = "left",
                 right = "right",
-                action = "return"
+                action = "rctrl"
             },
             {
                 joystick = "left",

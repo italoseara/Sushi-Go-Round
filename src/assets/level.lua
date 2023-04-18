@@ -68,7 +68,7 @@ function Level:new()
     -- Create the plates
     self.plates = {
         angle    = 0,
-        amount   = 10,
+        amount   = 12,
         lastFood = 0,
         
         width    = 16 * Config.image.scale,

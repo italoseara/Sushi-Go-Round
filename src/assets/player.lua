@@ -29,19 +29,37 @@ function Player:new(position, keybinds, animations)
     self.currentAnimation = self.animations[self.state][self.direction]
 
     -- Hand
-    self.hand             = love.graphics.newImage(Config.image.hand)
+    self.hand             = {  
+        sprite   = love.graphics.newImage(Config.image.hand),
+        width    = 16 * Config.image.scale / 2,
+        height   = 16 * Config.image.scale / 2,
+        position = Vector(0, 0),
+        radius   = 6 * Config.image.scale / 2,
+    }
+    self.hand.quads       = {
+        up    = love.graphics.newQuad(0, 0, 16, 16, self.hand.sprite:getDimensions()),
+        down  = love.graphics.newQuad(16, 0, 16, 16, self.hand.sprite:getDimensions()),
+        left  = love.graphics.newQuad(32, 0, 16, 16, self.hand.sprite:getDimensions()),
+        right = love.graphics.newQuad(48, 0, 16, 16, self.hand.sprite:getDimensions())
+    }
+
+    self.canPickUp        = false
     self.pickingUp        = false
+    self.actionTimer      = 0
 
     -- Joystick
     if self.keybinds.joystick then
         self.joystick = love.joystick.getJoysticks()[self.keybinds.joystickId or 1]
     end
+
+    -- Score
+    self.score = 0
 end
 
 function Player:update(dt)
     self:animate(dt)
     self:move(dt)
-    self:action()
+    self:action(dt)
     self:checkCollision()
 end
 
@@ -105,25 +123,94 @@ function Player:move(dt)
     end
 end
 
-function Player:action()
+function Player:action(dt)
+    -- Update hand position
+    local normal = Vector(self.acceleration.x, self.acceleration.y):norm()
+
+    if normal.x == 0 and normal.y == 0 then
+        if self.direction == "up" then
+            normal = Vector(0, -1)
+        elseif self.direction == "down" then
+            normal = Vector(0, 1)
+        elseif self.direction == "left" then
+            normal = Vector(-1, 0)
+        elseif self.direction == "right" then
+            normal = Vector(1, 0)
+        end
+    end
+
+    local offset = normal * Vector(self.width / 3 + 4, self.height / 3 + 4):getmag()
+
+    self.hand.position.x = self.position.x + self.width / 2 - self.hand.width / 2 + offset.x
+    self.hand.position.y = self.position.y + self.height / 2 - self.hand.height / 2 + offset.y
+
+    local isPressing = false
+
     if self.keybinds.joystick then
         if not self.joystick then
             return
         end
 
-        if self.joystick:isGamepadDown(self.keybinds.action) then
-            self.pickingUp = true
-        else
-            self.pickingUp = false
-        end
-
-        return
+        isPressing = self.joystick:isGamepadDown(self.keybinds.action)
+    else
+        isPressing = love.keyboard.isDown(self.keybinds.action)
     end
 
-    if love.keyboard.isDown(self.keybinds.action) then
-        self.pickingUp = true
+    if isPressing then
+        if self.canPickUp and not self.pickingUp and self.actionTimer < -1 then
+            self.actionTimer = 0
+            self.pickingUp = true
+        end
+
+        self.canPickUp = false
     else
+        self.canPickUp = true
+    end
+
+    if self.pickingUp and self.actionTimer <= 0 then
+        local plate = self:handColliding()
+
+        if plate then
+            local sushi = plate.food
+
+            if sushi then
+                self.score = self.score + Level.food.sushi.values[sushi]
+                plate.food = nil
+            end
+        end
+    end
+
+    if self.pickingUp then
+        self.actionTimer = self.actionTimer + dt
+    else
+        self.actionTimer = self.actionTimer - dt
+    end
+
+    if self.actionTimer > 0.2 then
+        self.actionTimer = 0;
         self.pickingUp = false
+    end
+end
+
+function Player:handColliding()
+    -- Check if the hand collides with any plate in level
+    for _, plate in ipairs(Level.plates) do
+        local plateCollider = {
+            x = plate.position.x,
+            y = plate.position.y,
+            radius = Level.plates.radius
+        }
+
+        local handCollider = {
+            x = self.hand.position.x + self.hand.width / 2,
+            y = self.hand.position.y + self.hand.height / 2,
+            radius = self.hand.radius
+        }
+
+        -- if the distance between the center of the hand and the plate is less than the sum of the radius of the hand and the plate
+        if Vector(handCollider.x - plateCollider.x, handCollider.y - plateCollider.y):getmag() < handCollider.radius + plateCollider.radius then
+            return plate
+        end
     end
 end
 
@@ -247,23 +334,18 @@ function Player:draw()
     self.currentAnimation:draw(PlayerSprite, self.position.x, self.position.y, 0, Config.image.scale, Config.image.scale)
 
     if self.pickingUp then
-        if self.direction == "down" then
-            love.graphics.draw(
-                self.hand,
-                self.position.x + self.width / 2 - self.hand:getWidth(),
-                self.position.y + self.height / 2 - self.hand:getHeight(),
-                0,
-                Config.image.scale / 2,
-                Config.image.scale / 2
-            )
-        end
+        self:drawHand()
     end
 
     if Config.debug then
         love.graphics.setColor(1, 0, 0)
 
         -- Collision
-        love.graphics.circle("line", self.position.x + self.width / 2, self.position.y + self.height / 2, self.radius)
+        love.graphics.circle("line",
+            self.position.x + self.width / 2,
+            self.position.y + self.height / 2,
+            self.radius
+        )
 
         -- Position
         love.graphics.print(
@@ -298,10 +380,38 @@ function Player:draw()
 
         -- Picking up
         love.graphics.print(
-            "PickingUp: " .. tostring(self.pickingUp),
+            "PickingUp: " .. tostring(self.pressingAction),
             self.position.x, self.position.y - 90
         )
 
+        -- Score
+        love.graphics.print(
+            "Score: " .. self.score,
+            self.position.x, self.position.y - 105
+        )
+
+        love.graphics.setColor(1, 1, 1)
+    end
+end
+
+function Player:drawHand()
+    love.graphics.draw(
+        self.hand.sprite,
+        self.hand.quads[self.direction],
+        self.hand.position.x,
+        self.hand.position.y,
+        0,
+        Config.image.scale / 2,
+        Config.image.scale / 2
+    )
+
+    if Config.debug then
+        love.graphics.setColor(1, 0, 0)
+        love.graphics.circle("line",
+            self.hand.position.x + self.hand.width / 2,
+            self.hand.position.y + self.hand.height / 2,
+            self.hand.radius
+        )
         love.graphics.setColor(1, 1, 1)
     end
 end
