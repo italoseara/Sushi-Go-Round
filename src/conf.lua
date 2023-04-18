@@ -13,12 +13,13 @@ function love.conf(t)
             width = 1152,
             height = 720,
         },
-        debug = false,
+        debug = true,
         image = {
             scale = 3,
             player = "assets/images/player.png",
             background = "assets/images/background.png",
             sushi = "assets/images/sushi.png",
+            hand = "assets/images/hand.png",
         },
         keybinds = {
             {

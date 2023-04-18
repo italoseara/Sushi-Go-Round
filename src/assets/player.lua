@@ -28,6 +28,10 @@ function Player:new(position, keybinds, animations)
 
     self.currentAnimation = self.animations[self.state][self.direction]
 
+    -- Hand
+    self.hand             = love.graphics.newImage(Config.image.hand)
+    self.pickingUp        = false
+
     -- Joystick
     if self.keybinds.joystick then
         self.joystick = love.joystick.getJoysticks()[self.keybinds.joystickId or 1]
@@ -37,6 +41,7 @@ end
 function Player:update(dt)
     self:animate(dt)
     self:move(dt)
+    self:action()
     self:checkCollision()
 end
 
@@ -97,6 +102,28 @@ function Player:move(dt)
         self:joystickInput()
     else
         self:keyboardInput()
+    end
+end
+
+function Player:action()
+    if self.keybinds.joystick then
+        if not self.joystick then
+            return
+        end
+
+        if self.joystick:isGamepadDown(self.keybinds.action) then
+            self.pickingUp = true
+        else
+            self.pickingUp = false
+        end
+
+        return
+    end
+
+    if love.keyboard.isDown(self.keybinds.action) then
+        self.pickingUp = true
+    else
+        self.pickingUp = false
     end
 end
 
@@ -219,6 +246,19 @@ end
 function Player:draw()
     self.currentAnimation:draw(PlayerSprite, self.position.x, self.position.y, 0, Config.image.scale, Config.image.scale)
 
+    if self.pickingUp then
+        if self.direction == "down" then
+            love.graphics.draw(
+                self.hand,
+                self.position.x + self.width / 2 - self.hand:getWidth(),
+                self.position.y + self.height / 2 - self.hand:getHeight(),
+                0,
+                Config.image.scale / 2,
+                Config.image.scale / 2
+            )
+        end
+    end
+
     if Config.debug then
         love.graphics.setColor(1, 0, 0)
 
@@ -254,6 +294,12 @@ function Player:draw()
         love.graphics.print(
             "Direction: " .. self.direction,
             self.position.x, self.position.y - 75
+        )
+
+        -- Picking up
+        love.graphics.print(
+            "PickingUp: " .. tostring(self.pickingUp),
+            self.position.x, self.position.y - 90
         )
 
         love.graphics.setColor(1, 1, 1)
