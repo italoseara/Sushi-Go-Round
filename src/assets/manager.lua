@@ -239,8 +239,10 @@ function GameManager:ending2State()
 
     -- Update the scores
     for i = 1, 4 do
-        if scores[i] < getPlayerById(i).score then
-            scores[i] = scores[i] + 1
+        for _ = 1, 3 do
+            if scores[i] < getPlayerById(i).score then
+                scores[i] = scores[i] + 1
+            end
         end
     end
 

@@ -16,8 +16,8 @@ function Player:new(position, keybinds, animations, id)
     self.position         = position - Vector(self.width / 2, self.height / 2)
     self.velocity         = Vector(0, 0)
     self.acceleration     = Vector(0, 0)
-    self.speed            = 3500
-    self.friction         = 0.9
+    self.speed            = 3000
+    self.friction         = 0.85
 
     self.minVelocity      = 1
 
