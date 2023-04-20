@@ -16,7 +16,9 @@ function GameManager:new()
 end
 
 function GameManager:update(dt)
-    self.timer = self.timer - dt
+    if self.state ~= "menu" then
+        self.timer = self.timer - dt
+    end
 
     if self.state == "starting" then
         if self.timer <= 0 then
