@@ -127,7 +127,7 @@ function Player:move(dt)
 end
 
 function Player:action(dt)
-    if Manager.state == "menu" or Manager.state == "starting" then
+    if not Manager.canMove then
         return
     end
 

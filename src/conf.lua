@@ -37,11 +37,11 @@ function love.conf(t)
             },
             {
                 joystick = "left",
-                action = "leftstick"
+                action = "leftshoulder"
             },
             {
                 joystick = "right",
-                action = "rightstick"
+                action = "rightshoulder"
             }
         }
     }
