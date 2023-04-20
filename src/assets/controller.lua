@@ -26,8 +26,8 @@ function GameController:new()
         plate = Anim8.newAnimation(grid(1, 1), 1),
         sushi = {
             sprites = {},
-            chances = { 0.05, 0.1, 0.1, 0.2, 0.25, 0.2, 0.1 },
-            values  = { 1000, 250, 350, 20,  50,   150, 600 }
+            chances = { 0.05, 0.15, 0.1, 0.2, 0.20, 0.2, 0.1 },
+            values  = { 1000, 250,  350, 20,  50,   150, 600 }
         },
     }
 

@@ -32,10 +32,6 @@ function GameManager:update(dt)
             self.timer = 3
 
             self.state = "ending1"
-
-            for _, player in ipairs(Controller.players) do
-                player.state = "idle"
-            end
         end
     elseif self.state == "ending1" then
         if self.timer <= 0 then
