@@ -3,7 +3,10 @@ local Vector = require "libs.vector"
 
 local Player = Class:extend()
 
-function Player:new(position, keybinds, animations)
+function Player:new(position, keybinds, animations, id)
+    -- Player ID
+    self.id               = id
+
     -- Collision
     self.width            = 16 * Config.image.scale
     self.height           = 16 * Config.image.scale
@@ -29,23 +32,18 @@ function Player:new(position, keybinds, animations)
     self.currentAnimation = self.animations[self.state][self.direction]
 
     -- Hand
-    self.hand             = {  
+    self.hand             = {
         sprite   = love.graphics.newImage(Config.image.hand),
         width    = 16 * Config.image.scale / 2,
         height   = 16 * Config.image.scale / 2,
         position = Vector(0, 0),
         radius   = 6 * Config.image.scale / 2,
-    }
-    self.hand.quads       = {
-        up    = love.graphics.newQuad(0, 0, 16, 16, self.hand.sprite:getDimensions()),
-        down  = love.graphics.newQuad(16, 0, 16, 16, self.hand.sprite:getDimensions()),
-        left  = love.graphics.newQuad(32, 0, 16, 16, self.hand.sprite:getDimensions()),
-        right = love.graphics.newQuad(48, 0, 16, 16, self.hand.sprite:getDimensions())
+        angle    = 0,
     }
 
     self.canPickUp        = false
     self.pickingUp        = false
-    self.actionTimer      = 0
+    self.actionTimer      = -2
 
     -- Joystick
     if self.keybinds.joystick then
@@ -54,6 +52,7 @@ function Player:new(position, keybinds, animations)
 
     -- Score
     self.score = 0
+    self.plates = 0
 end
 
 function Player:update(dt)
@@ -88,6 +87,10 @@ function Player:animate(dt)
 end
 
 function Player:move(dt)
+    if not Manager.canMove then
+        return
+    end
+
     -- Fix diagonal movement (Normalize acceleration vector)
     if self.acceleration.x ~= 0 and self.acceleration.y ~= 0 then
         self.acceleration.x = self.acceleration.x * 0.7071
@@ -124,6 +127,10 @@ function Player:move(dt)
 end
 
 function Player:action(dt)
+    if Manager.state == "menu" or Manager.state == "starting" then
+        return
+    end
+
     -- Update hand position
     local normal = Vector(self.acceleration.x, self.acceleration.y):norm()
 
@@ -140,10 +147,12 @@ function Player:action(dt)
     end
 
     local offset = normal * Vector(self.width / 3 + 4, self.height / 3 + 4):getmag()
+    self.hand.angle = math.atan2(normal.y, normal.x)
 
     self.hand.position.x = self.position.x + self.width / 2 - self.hand.width / 2 + offset.x
     self.hand.position.y = self.position.y + self.height / 2 - self.hand.height / 2 + offset.y
 
+    -- Update action timer
     local isPressing = false
 
     if self.keybinds.joystick then
@@ -174,7 +183,8 @@ function Player:action(dt)
             local sushi = plate.food
 
             if sushi then
-                self.score = self.score + Level.food.sushi.values[sushi]
+                self.score = self.score + Controller.food.sushi.values[sushi]
+                self.plates = self.plates + 1
                 plate.food = nil
             end
         end
@@ -194,11 +204,11 @@ end
 
 function Player:handColliding()
     -- Check if the hand collides with any plate in level
-    for _, plate in ipairs(Level.plates) do
+    for _, plate in ipairs(Controller.plates) do
         local plateCollider = {
             x = plate.position.x,
             y = plate.position.y,
-            radius = Level.plates.radius
+            radius = Controller.plates.radius
         }
 
         local handCollider = {
@@ -216,10 +226,10 @@ end
 
 function Player:checkCollision()
     -- Check if the collision of the player is inside the circle
-    self:stickToCollider(Level.background.collider)
+    self:stickToCollider(Controller.background.collider)
 
     -- Check collisions with other players
-    for _, player in ipairs(Level.players) do
+    for _, player in ipairs(Controller.players) do
         if player ~= self then
             self:collideWithPlayer(player)
         end
@@ -324,18 +334,16 @@ function Player:keyboardInput()
     end
 end
 
-function Player:resize(w, h)
-    local difference = Vector(w, h) - Level.lastSize
-
-    self.position = self.position + difference / 2
-end
-
 function Player:draw()
     self.currentAnimation:draw(PlayerSprite, self.position.x, self.position.y, 0, Config.image.scale, Config.image.scale)
 
     if self.pickingUp then
         self:drawHand()
     end
+
+    -- Draw player id above the player
+    local text = love.graphics.newText(love.graphics.newFont(Config.font.menu, 20), "P" .. self.id)
+    love.graphics.draw(text, self.position.x + self.width / 2 - text:getWidth() / 2 + 1, self.position.y - 20 + 1)
 
     if Config.debug then
         love.graphics.setColor(1, 0, 0)
@@ -380,7 +388,7 @@ function Player:draw()
 
         -- Picking up
         love.graphics.print(
-            "PickingUp: " .. tostring(self.pressingAction),
+            "PickingUp: " .. tostring(self.pickingUp),
             self.position.x, self.position.y - 90
         )
 
@@ -397,21 +405,25 @@ end
 function Player:drawHand()
     love.graphics.draw(
         self.hand.sprite,
-        self.hand.quads[self.direction],
-        self.hand.position.x,
-        self.hand.position.y,
-        0,
+        self.hand.position.x + self.hand.width / 2,
+        self.hand.position.y + self.hand.height / 2,
+        self.hand.angle,
         Config.image.scale / 2,
-        Config.image.scale / 2
+        Config.image.scale / 2,
+        self.hand.width / 3,
+        self.hand.height / 3
     )
 
     if Config.debug then
         love.graphics.setColor(1, 0, 0)
+
+        -- Collision
         love.graphics.circle("line",
             self.hand.position.x + self.hand.width / 2,
             self.hand.position.y + self.hand.height / 2,
             self.hand.radius
         )
+
         love.graphics.setColor(1, 1, 1)
     end
 end

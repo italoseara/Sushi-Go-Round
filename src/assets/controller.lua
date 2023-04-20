@@ -2,10 +2,11 @@ local Class = require "libs.classic"
 local Vector = require "libs.vector"
 local Anim8 = require "libs.anim8"
 
-local Level = Class:extend()
 local Player = require "assets.player"
 
-function Level:new()
+local GameController = Class:extend()
+
+function GameController:new()
     self.players = {}
     self.lastSize = Vector(love.graphics:getWidth(), love.graphics:getHeight())
     self.background = {
@@ -16,8 +17,25 @@ function Level:new()
             radius = 150
         }
     }
+    
+    -- Load sushi sprites
+    SushiSprite = love.graphics.newImage(Config.image.sushi)
+    local grid = Anim8.newGrid(16, 16, SushiSprite:getWidth(), SushiSprite:getHeight())
 
-    -- Load player sprites
+    self.food = {
+        plate = Anim8.newAnimation(grid(1, 1), 1),
+        sushi = {
+            sprites = {},
+            chances = { 0.05, 0.1, 0.1, 0.2, 0.25, 0.2, 0.1 },
+            values  = { 1000, 250, 350, 20,  50,   150, 600 }
+        },
+    }
+
+    for i = 2, 8 do
+        table.insert(self.food.sushi.sprites, Anim8.newAnimation(grid(i, 1), 1))
+    end
+
+    -- load the player
     PlayerSprite = love.graphics.newImage(Config.image.player)
     local grid = Anim8.newGrid(16, 16, PlayerSprite:getWidth(), PlayerSprite:getHeight())
 
@@ -45,24 +63,7 @@ function Level:new()
                 left  = Anim8.newAnimation(grid(index .. "-" .. index + 2, 2), 0.15),
                 right = Anim8.newAnimation(grid(index .. "-" .. index + 2, 3), 0.15)
             }
-        }))
-    end
-    
-    -- Load sushi sprites
-    SushiSprite = love.graphics.newImage(Config.image.sushi)
-    local grid = Anim8.newGrid(16, 16, SushiSprite:getWidth(), SushiSprite:getHeight())
-
-    self.food = {
-        plate = Anim8.newAnimation(grid(1, 1), 1),
-        sushi = {
-            sprites = {},
-            chances = { 0.05, 0.1, 0.1, 0.2, 0.25, 0.2, 0.1 },
-            values  = { 1000, 250, 350, 20,  50,   150, 600 }
-        },
-    }
-
-    for i = 2, 8 do
-        table.insert(self.food.sushi.sprites, Anim8.newAnimation(grid(i, 1), 1))
+        }, i))
     end
 
     -- Create the plates
@@ -89,7 +90,7 @@ function Level:new()
     end
 end
 
-function Level:update(dt)
+function GameController:update(dt)
     -- Sort the players by their y position
     table.sort(self.players, function(a, b)
         return a.position.y < b.position.y
@@ -132,7 +133,7 @@ function Level:update(dt)
     end
 end
 
-function Level:draw()
+function GameController:draw()
     -- draw the background
     love.graphics.draw(self.background.image,
         love.graphics.getWidth() / 2 - self.background.image:getWidth() * Config.image.scale / 2,
@@ -143,8 +144,10 @@ function Level:draw()
     for _, plate in ipairs(self.plates) do
         self.food.plate:draw(SushiSprite, plate.position.x, plate.position.y, 0, Config.image.scale * 0.8, Config.image.scale * 0.8, 8, 8)
 
-        if plate.food then
-            self.food.sushi.sprites[plate.food]:draw(SushiSprite, plate.position.x, plate.position.y, 0, Config.image.scale * 0.8, Config.image.scale * 0.8, 8, 8)
+        if Manager.showFood then
+            if plate.food then
+                self.food.sushi.sprites[plate.food]:draw(SushiSprite, plate.position.x, plate.position.y, 0, Config.image.scale * 0.8, Config.image.scale * 0.8, 8, 8)
+            end
         end
     end
 
@@ -172,18 +175,6 @@ function Level:draw()
 
 end
 
-function Level:resize(w, h)
-    for _, player in ipairs(self.players) do
-        player:resize(w, h)
-    end
-    
-    -- Update the table collider's position
-    self.background.collider.x, self.background.collider.y = w / 2, h / 2 + 60
-
-    -- Update the last size
-    self.lastSize = Vector(w, h)
-end
-
 function pickRandomWithChance(chances)
     local chance = 0
     for i, c in ipairs(chances) do
@@ -195,4 +186,4 @@ function pickRandomWithChance(chances)
     end
 end
 
-return Level
+return GameController

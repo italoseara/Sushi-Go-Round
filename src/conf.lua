@@ -2,17 +2,13 @@ function love.conf(t)
     t.window.title = "Sushi Go Round"
     t.window.width = 1152
     t.window.height = 720
-    t.window.resizable = true
+    t.window.resizable = false
     t.window.fullscreen = false
     t.window.vsync = true
 
     t.modules.joystick = true
 
     Config = {
-        window = {
-            width = 1152,
-            height = 720,
-        },
         debug = false,
         image = {
             scale = 3,
@@ -20,6 +16,9 @@ function love.conf(t)
             background = "assets/images/background.png",
             sushi = "assets/images/sushi.png",
             hand = "assets/images/hand.png",
+        },
+        font = {
+            menu = "assets/fonts/arcadeclassic/ARCADECLASSIC.TTF",
         },
         keybinds = {
             {
